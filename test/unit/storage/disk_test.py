@@ -176,7 +176,6 @@ class TestDisk:
             )
         }
         self.disk.create_custom_partitions(table_entries)
-        # Clones don't use partition_number, but the main partition does
         assert self.partitioner.create.call_args_list == [
             call('p.lxvarclone1', '100', 't.linux'),
             call('p.lxvarclone2', '100', 't.linux'),

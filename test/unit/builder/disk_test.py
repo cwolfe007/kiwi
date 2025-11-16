@@ -1472,7 +1472,8 @@ class TestDiskBuilder:
                 partition_type='t.linux',
                 mountpoint='/spare',
                 filesystem='squashfs',
-                label=''
+                label='',
+                partition_number=0
             )
         }
         self.disk_builder.volume_manager_name = None
@@ -1487,6 +1488,7 @@ class TestDiskBuilder:
         disk.create_custom_partitions.assert_called_once_with(
             self.disk_builder.custom_partitions
         )
+
         assert [
             call('PARTUUID=blkid_result /spare squashfs defaults 0 0')
         ] in self.disk_builder.fstab.add_entry.call_args_list

@@ -131,8 +131,8 @@ class PartitionNumbering:
                 f'All partitions must specify numbers or none at all.'
             )
             raise KiwiPartitionNumberingError(
-                f'Mixed partition numbering not allowed: '
-                f'Either all partitions must have explicit numbers or none at all.'
+                'Mixed partition numbering not allowed: '
+                'Either all partitions must have explicit numbers or none at all.'
             )
 
         # Validate explicit numbers

@@ -51,7 +51,8 @@ class PartitionerGpt(PartitionerBase):
         }
 
     def create(
-        self, name: str, mbsize: int, type_name: str, flags: List[str] = None
+        self, name: str, mbsize: int, type_name: str, flags: List[str] = None,
+        partition_number: int = None
     ) -> None:
         """
         Create GPT partition
@@ -60,8 +61,14 @@ class PartitionerGpt(PartitionerBase):
         :param int mbsize: partition size
         :param string type_name: partition type
         :param list flags: additional flags
+        :param int partition_number: explicit partition number (None = auto-assign)
         """
-        self.partition_id += 1
+        # Use explicit partition number if provided, otherwise auto-increment
+        if partition_number is not None:
+            self.partition_id = partition_number
+        else:
+            self.partition_id += 1
+
         if mbsize == 'all_free':
             partition_end = '0'
         else:

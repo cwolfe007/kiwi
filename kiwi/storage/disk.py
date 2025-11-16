@@ -43,7 +43,8 @@ ptable_entry_type = NamedTuple(
         ('partition_type', str),
         ('mountpoint', str),
         ('filesystem', str),
-        ('label', str)
+        ('label', str),
+        ('partition_number', int)  # Explicit partition number, 0 means auto-assign
     ]
 )
 
@@ -164,8 +165,11 @@ class Disk(DeviceProvider):
                     format(entry.mbsize)
                 )
             id_name = f'kiwi_{map_name.title()}Part'
+            # Pass explicit partition number if specified (non-zero)
+            partition_number = entry.partition_number if entry.partition_number > 0 else None
             self.partitioner.create(
-                entry.partition_name, entry.mbsize, entry.partition_type
+                entry.partition_name, entry.mbsize, entry.partition_type,
+                partition_number=partition_number
             )
             self._add_to_map(map_name)
             self._add_to_public_id_map(id_name)

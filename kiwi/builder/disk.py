@@ -36,6 +36,7 @@ from kiwi.utils.veritysetup import VeritySetup
 from kiwi.utils.temporary import Temporary
 from kiwi.system.mount import ImageSystem
 from kiwi.storage.disk import ptable_entry_type
+from kiwi.storage.partition_numbering import PartitionNumbering
 from kiwi.defaults import Defaults
 from kiwi.filesystem.base import FileSystemBase
 from kiwi.bootloader.config import create_boot_loader_config
@@ -154,6 +155,18 @@ class DiskBuilder:
         self.volume_manager_name = xml_state.get_volume_management()
         self.volumes = xml_state.get_volumes()
         self.custom_partitions = xml_state.get_partitions()
+        # Validate and apply smart partition numbering
+        if self.custom_partitions:
+            label_type = 'gpt' if self.force_mbr is False else 'msdos'
+            PartitionNumbering.warn_on_edge_cases(
+                self.custom_partitions, label_type
+            )
+            # Get ordered and validated partitions
+            ordered_partitions = PartitionNumbering.validate_and_assign_numbers(
+                self.custom_partitions, label_type
+            )
+            # Reconstruct dict with validated entries
+            self.custom_partitions = dict(ordered_partitions)
         self.volume_group_name = xml_state.get_volume_group_name()
         self.dracut_setup = xml_state.get_dracut_config('setup')
         self.dracut_add_modules = xml_state.get_dracut_config('add').modules
@@ -975,11 +988,14 @@ class DiskBuilder:
             exclude_list.append('boot/efi/*')
             exclude_list.append('boot/efi/.*')
         if self.custom_partitions:
-            for map_name in sorted(self.custom_partitions.keys()):
-                if map_name in device_map and \
-                   self.custom_partitions[map_name].mountpoint:
+            # Iterate by partition number order
+            for map_name, entry in sorted(
+                self.custom_partitions.items(),
+                key=lambda x: x[1].partition_number if x[1].partition_number > 0 else float('inf')
+            ):
+                if map_name in device_map and entry.mountpoint:
                     mountpoint = os.path.normpath(
-                        self.custom_partitions[map_name].mountpoint
+                        entry.mountpoint
                     ).lstrip(os.sep)
                     exclude_list.append(f'{mountpoint}/*')
                     exclude_list.append(f'{mountpoint}/.*')
@@ -1156,9 +1172,17 @@ class DiskBuilder:
                 disksize_used_mbytes += self.swap_mbytes
 
         if self.custom_partitions:
+            # Create log message showing partitions with their numbers
+            partition_info = [
+                f"{name}(#{entry.partition_number})"
+                for name, entry in sorted(
+                    self.custom_partitions.items(),
+                    key=lambda x: x[1].partition_number if x[1].partition_number > 0 else float('inf')
+                )
+            ]
             log.info(
                 '--> creating custom partition(s): {0}'.format(
-                    sorted(self.custom_partitions.keys())
+                    partition_info
                 )
             )
             disk.create_custom_partitions(self.custom_partitions)
@@ -1472,12 +1496,15 @@ class DiskBuilder:
                 device_map['swap'].get_device(), 'swap'
             )
         if self.custom_partitions:
-            for map_name in sorted(self.custom_partitions.keys()):
-                if device_map.get(map_name) and \
-                   self.custom_partitions[map_name].mountpoint:
+            # Iterate by partition number order
+            for map_name, entry in sorted(
+                self.custom_partitions.items(),
+                key=lambda x: x[1].partition_number if x[1].partition_number > 0 else float('inf')
+            ):
+                if device_map.get(map_name) and entry.mountpoint:
                     self._add_fstab_entry(
                         device_map[map_name].get_device(),
-                        self.custom_partitions[map_name].mountpoint
+                        entry.mountpoint
                     )
         setup.create_fstab(
             self.fstab

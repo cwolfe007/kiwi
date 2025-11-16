@@ -1821,7 +1821,8 @@ class XMLState:
                         partition_type=str,
                         mountpoint=str,
                         filesystem=str,
-                        label=str
+                        label=str,
+                        partition_number=int
                     )
                 }
 
@@ -1834,6 +1835,7 @@ class XMLState:
         for partition in partitions_section.get_partition():
             name = partition.get_name()
             partition_name = partition.get_partition_name() or f'p.lx{name}'
+            partition_number = int(partition.get_number()) if partition.get_number() else 0
             partitions[name] = ptable_entry_type(
                 mbsize=self._to_mega_byte(partition.get_size()),
                 clone=int(partition.get_clone()) if partition.get_clone() else 0,
@@ -1841,7 +1843,8 @@ class XMLState:
                 partition_type=partition.get_partition_type() or 't.linux',
                 mountpoint=partition.get_mountpoint(),
                 filesystem=partition.get_filesystem(),
-                label=partition.get_label() or ''
+                label=partition.get_label() or '',
+                partition_number=partition_number
             )
         return partitions
 

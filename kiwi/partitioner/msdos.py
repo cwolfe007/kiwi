@@ -56,7 +56,8 @@ class PartitionerMsDos(PartitionerBase):
         }
 
     def create(
-        self, name: str, mbsize: int, type_name: str, flags: List[str] = []
+        self, name: str, mbsize: int, type_name: str, flags: List[str] = [],
+        partition_number: int = None
     ) -> None:
         """
         Create msdos partition
@@ -65,19 +66,28 @@ class PartitionerMsDos(PartitionerBase):
         :param int mbsize: partition size
         :param string type_name: partition type
         :param list flags: additional flags
+        :param int partition_number: explicit partition number (None = auto-assign)
         """
         if self.extended_layout:
             if self.partition_id < 3:
                 # in primary boundary
+                if partition_number is not None:
+                    self.partition_id = partition_number - 1
                 self._create_primary(name, mbsize, type_name, flags)
             elif self.partition_id == 3:
                 # at primary boundary, create extended + logical
+                if partition_number is not None:
+                    self.partition_id = partition_number - 1
                 self._create_extended(name)
                 self._create_logical(name, mbsize, type_name, flags)
             elif self.partition_id > 3:
                 # in logical boundary
+                if partition_number is not None:
+                    self.partition_id = partition_number - 1
                 self._create_logical(name, mbsize, type_name, flags)
         else:
+            if partition_number is not None:
+                self.partition_id = partition_number - 1
             self._create_primary(name, mbsize, type_name, flags)
 
     def set_flag(self, partition_id: int, flag_name: str) -> None:

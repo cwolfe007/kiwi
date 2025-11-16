@@ -155,6 +155,9 @@ class DiskBuilder:
         self.volume_manager_name = xml_state.get_volume_management()
         self.volumes = xml_state.get_volumes()
         self.custom_partitions = xml_state.get_partitions()
+        self.mdraid = xml_state.build_type.get_mdraid()
+        self.hybrid_mbr = xml_state.build_type.get_gpt_hybrid_mbr()
+        self.force_mbr = xml_state.build_type.get_force_mbr()
         # Validate and apply smart partition numbering
         if self.custom_partitions:
             label_type = 'gpt' if self.force_mbr is False else 'msdos'
@@ -173,9 +176,6 @@ class DiskBuilder:
         self.dracut_omit_modules = xml_state.get_dracut_config('omit').modules
         self.dracut_add_drivers = xml_state.get_dracut_config('add').drivers
         self.dracut_omit_drivers = xml_state.get_dracut_config('omit').drivers
-        self.mdraid = xml_state.build_type.get_mdraid()
-        self.hybrid_mbr = xml_state.build_type.get_gpt_hybrid_mbr()
-        self.force_mbr = xml_state.build_type.get_force_mbr()
         self.luks = xml_state.get_luks_credentials()
         self.use_disk_password = \
             xml_state.get_build_type_bootloader_use_disk_password()

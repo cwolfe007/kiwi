@@ -35,7 +35,8 @@ class TestImageSystem:
                 partition_type='t.linux',
                 mountpoint='/var',
                 filesystem='ext3',
-                label='var'
+                label='var',
+                partition_number=0
             )
         }
         self.image_system = ImageSystem(

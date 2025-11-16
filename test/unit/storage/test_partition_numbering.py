@@ -280,3 +280,68 @@ class TestPartitionNumbering:
 
         # Should warn about system partition with explicit number
         assert 'System partition' in caplog.text
+
+    def test_unknown_label_type_defaults_to_gpt(self):
+        """Test that unknown label types default to GPT range (1-128)"""
+        partitions = {
+            'data': ptable_entry_type(
+                mbsize=512, clone=0, partition_name='p.lxdata',
+                partition_type='t.linux', mountpoint='/data',
+                filesystem='ext4', label='DATA', partition_number=100
+            )
+        }
+
+        # Should not raise an error for partition_number=100 with unknown label type
+        result = PartitionNumbering.validate_and_assign_numbers(partitions, 'unknown')
+        assert len(result) == 1
+        assert result[0][1].partition_number == 100
+
+    def test_warn_gap_in_numbering(self, caplog):
+        """Test warning for gaps in explicit partition numbering"""
+        partitions = {
+            'part1': ptable_entry_type(
+                mbsize=100, clone=0, partition_name='p.lxpart1',
+                partition_type='t.linux', mountpoint='/part1',
+                filesystem='ext4', label='PART1', partition_number=1
+            ),
+            'part3': ptable_entry_type(
+                mbsize=100, clone=0, partition_name='p.lxpart3',
+                partition_type='t.linux', mountpoint='/part3',
+                filesystem='ext4', label='PART3', partition_number=3
+            )
+        }
+
+        PartitionNumbering.warn_on_edge_cases(partitions, 'gpt')
+
+        # Should warn about gap between 1 and 3
+        assert 'Gap detected' in caplog.text
+
+    def test_warn_mixed_numbering_edge_case(self, caplog):
+        """Test warning log message for mixed partition numbering in edge cases"""
+        partitions = {
+            'explicit1': ptable_entry_type(
+                mbsize=100, clone=0, partition_name='p.lxexp1',
+                partition_type='t.linux', mountpoint='/exp1',
+                filesystem='ext4', label='EXP1', partition_number=1
+            ),
+            'explicit2': ptable_entry_type(
+                mbsize=100, clone=0, partition_name='p.lxexp2',
+                partition_type='t.linux', mountpoint='/exp2',
+                filesystem='ext4', label='EXP2', partition_number=2
+            ),
+            'implicit1': ptable_entry_type(
+                mbsize=100, clone=0, partition_name='p.lximp1',
+                partition_type='t.linux', mountpoint='/imp1',
+                filesystem='ext4', label='IMP1', partition_number=0
+            ),
+            'implicit2': ptable_entry_type(
+                mbsize=100, clone=0, partition_name='p.lximp2',
+                partition_type='t.linux', mountpoint='/imp2',
+                filesystem='ext4', label='IMP2', partition_number=0
+            )
+        }
+
+        PartitionNumbering.warn_on_edge_cases(partitions, 'gpt')
+
+        # Should log info about mixed numbering in edge case logging
+        assert 'Mixed partition numbering' in caplog.text

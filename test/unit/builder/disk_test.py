@@ -1468,9 +1468,8 @@ class TestDiskBuilder:
                 partition_name='p.lxtmp',
                 partition_type='t.linux',
                 mountpoint='/spare',
-                filesystem='ext3',
-                label='',
-                partition_number=0
+                filesystem='squashfs',
+                label=''
             )
         }
         self.disk_builder.volume_manager_name = None

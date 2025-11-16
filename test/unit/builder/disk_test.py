@@ -471,8 +471,7 @@ class TestDiskBuilder:
                 partition_type='t.linux',
                 mountpoint='/var',
                 filesystem='ext3',
-                label='var',
-                partition_number=0
+                label='var'
             )
         }
         volume_manager = Mock()
@@ -549,8 +548,7 @@ class TestDiskBuilder:
                 partition_type='t.linux',
                 mountpoint='/var',
                 filesystem='ext3',
-                label='var',
-                partition_number=0
+                label='var'
             )
         }
         self.disk_builder.root_clone_count = 1
@@ -1462,8 +1460,7 @@ class TestDiskBuilder:
                 partition_type='t.linux',
                 mountpoint='/var',
                 filesystem='ext3',
-                label='var',
-                partition_number=0
+                label='var'
             ),
             'spare': ptable_entry_type(
                 mbsize=100,
@@ -1489,11 +1486,11 @@ class TestDiskBuilder:
             self.disk_builder.custom_partitions
         )
         assert [
-            call('UUID=blkid_result /spare ext3 defaults 0 0')
+            call('PARTUUID=blkid_result /spare squashfs defaults 0 0')
         ] in self.disk_builder.fstab.add_entry.call_args_list
 
         assert [
-            call('PARTUUID=blkid_result /var squashfs defaults 0 0')
+            call('UUID=blkid_result /var ext3 defaults 0 0')
         ] in self.disk_builder.fstab.add_entry.call_args_list
 
         self.disk_builder.persistency_type = 'by-partuuid'
@@ -1501,7 +1498,7 @@ class TestDiskBuilder:
         with patch('builtins.open'):
             self.disk_builder.create_disk()
         assert [
-            call('PARTUUID=blkid_result /var squashfs defaults 0 0')
+            call('PARTUUID=blkid_result /var ext3 defaults 0 0')
         ] in self.disk_builder.fstab.add_entry.call_args_list
 
         self.disk_builder.persistency_type = 'by-label'
@@ -1509,7 +1506,7 @@ class TestDiskBuilder:
         with patch('builtins.open'):
             self.disk_builder.create_disk()
         assert [
-            call('LABEL=blkid_result /var some_fs defaults 0 0')
+            call('LABEL=blkid_result /var ext3 defaults 0 0')
         ] in self.disk_builder.fstab.add_entry.call_args_list
 
     @patch('kiwi.builder.disk.Disk')

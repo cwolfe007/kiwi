@@ -471,7 +471,8 @@ class TestDiskBuilder:
                 partition_type='t.linux',
                 mountpoint='/var',
                 filesystem='ext3',
-                label='var'
+                label='var',
+                partition_number=0
             )
         }
         volume_manager = Mock()
@@ -548,7 +549,8 @@ class TestDiskBuilder:
                 partition_type='t.linux',
                 mountpoint='/var',
                 filesystem='ext3',
-                label='var'
+                label='var',
+                partition_number=0
             )
         }
         self.disk_builder.root_clone_count = 1
@@ -1460,7 +1462,8 @@ class TestDiskBuilder:
                 partition_type='t.linux',
                 mountpoint='/var',
                 filesystem='ext3',
-                label='var'
+                label='var',
+                partition_number=0
             ),
             'spare': ptable_entry_type(
                 mbsize=100,

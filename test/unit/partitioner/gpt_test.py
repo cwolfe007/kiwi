@@ -71,6 +71,16 @@ class TestPartitionerGpt:
             ['sgdisk', '-n', '1:0:0', '-c', '1:name', '/dev/loop0']
         )
 
+    @patch('kiwi.partitioner.gpt.Command.run')
+    @patch('kiwi.partitioner.gpt.PartitionerGpt.set_flag')
+    def test_create_with_partition_number(self, mock_flag, mock_command):
+        self.partitioner.create('name', 100, 't.linux', partition_number=5)
+        mock_command.assert_called_once_with(
+            ['sgdisk', '-n', '5:0:+100M', '-c', '5:name', '/dev/loop0']
+        )
+        assert mock_flag.call_args_list[0] == \
+            call(5, 't.linux')
+
     def test_set_flag_invalid(self):
         with raises(KiwiPartitionerGptFlagError):
             self.partitioner.set_flag(1, 'foo')

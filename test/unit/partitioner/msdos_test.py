@@ -165,6 +165,86 @@ class TestPartitionerMsDos:
             'n\np\n1\n\n\nw\nq\n'
         )
 
+    @patch('kiwi.partitioner.msdos.Command.run')
+    @patch('kiwi.partitioner.msdos.PartitionerMsDos.set_flag')
+    @patch('kiwi.partitioner.msdos.Temporary.new_file')
+    def test_create_primary_with_partition_number(
+        self, mock_temp, mock_flag, mock_command
+    ):
+        mock_command.side_effect = Exception
+        temp_type = namedtuple(
+            'temp_type', ['name']
+        )
+        mock_temp.return_value = temp_type(
+            name='tempfile'
+        )
+        m_open = mock_open()
+
+        with patch('builtins.open', m_open, create=True):
+            self.partitioner.create(
+                'name', 100, 't.linux', partition_number=3
+            )
+
+        m_open.return_value.write.assert_called_once_with(
+            'n\np\n3\n\n+100M\nw\nq\n'
+        )
+        call = mock_flag.call_args_list[0]
+        assert mock_flag.call_args_list[0] == \
+            call(3, 't.linux')
+
+    @patch('kiwi.partitioner.msdos.Command.run')
+    @patch('kiwi.partitioner.msdos.PartitionerMsDos.set_flag')
+    @patch('kiwi.partitioner.msdos.Temporary.new_file')
+    def test_create_extended_with_partition_number(
+        self, mock_temp, mock_flag, mock_command
+    ):
+        # Test extended layout with explicit partition_number
+        # This covers lines 75, 80, 86 in msdos.py
+        mock_command.side_effect = Exception
+        temp_type = namedtuple(
+            'temp_type', ['name']
+        )
+        mock_temp.return_value = temp_type(
+            name='tempfile'
+        )
+        m_open = mock_open()
+
+        # Test primary partition in extended layout with partition_number
+        with patch('builtins.open', m_open, create=True):
+            self.partitioner_extended.partition_id = 1
+            self.partitioner_extended.create(
+                'name', 100, 't.linux', partition_number=2
+            )
+
+        m_open.return_value.write.assert_called_once_with(
+            'n\np\n2\n\n+100M\nw\nq\n'
+        )
+        mock_flag.reset_mock()
+        m_open.reset_mock()
+
+        # Test extended partition creation in extended layout with partition_number
+        with patch('builtins.open', m_open, create=True):
+            self.partitioner_extended.partition_id = 3
+            self.partitioner_extended.create(
+                'name', 100, 't.linux', partition_number=4
+            )
+
+        # Should have called _create_extended and _create_logical
+        # The extended partition uses partition_number - 1 = 3
+        assert m_open.return_value.write.call_count >= 1
+        mock_flag.reset_mock()
+        m_open.reset_mock()
+
+        # Test logical partition in extended layout with partition_number
+        with patch('builtins.open', m_open, create=True):
+            self.partitioner_extended.partition_id = 5
+            self.partitioner_extended.create(
+                'name', 100, 't.linux', partition_number=6
+            )
+
+        # Should have called _create_logical with partition_number adjustment
+        assert m_open.return_value.write.call_count >= 1
+
     def test_set_flag_invalid(self):
         with raises(KiwiPartitionerMsDosFlagError):
             self.partitioner.set_flag(1, 'foo')

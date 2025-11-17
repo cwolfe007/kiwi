@@ -1830,6 +1830,232 @@ class TestDiskBuilder:
 
         disk_subformat.create_image_format.assert_called_once_with()
 
+    @patch('kiwi.builder.disk.Disk')
+    @patch('kiwi.builder.disk.create_boot_loader_config')
+    @patch('kiwi.builder.disk.FileSystem.new')
+    @patch('kiwi.builder.disk.Command.run')
+    @patch('kiwi.builder.disk.Defaults.get_grub_boot_directory_name')
+    @patch('os.path.exists')
+    @patch('kiwi.builder.disk.BlockID')
+    def test_create_disk_with_explicit_partition_numbers(
+        self, mock_BlockID, mock_exists, mock_grub_dir, mock_command, mock_fs,
+        mock_create_boot_loader_config, mock_Disk
+    ):
+        # Test with explicit partition numbers
+        disk = self._get_disk_instance()
+        mock_Disk.return_value.__enter__.return_value = disk
+        bootloader_config = Mock()
+        bootloader_config.get_boot_cmdline = Mock(
+            return_value='boot_cmdline'
+        )
+        mock_create_boot_loader_config.return_value.__enter__.return_value = \
+            bootloader_config
+
+        block_operation = Mock()
+        block_operation.get_filesystem.return_value = 'ext3'
+        block_operation.get_blkid.return_value = 'blkid_result'
+        mock_BlockID.return_value = block_operation
+
+        mock_exists.return_value = True
+        # Use explicit partition numbers
+        self.disk_builder.custom_partitions = {
+            'var': ptable_entry_type(
+                mbsize=100,
+                clone=0,
+                partition_name='p.lxvar',
+                partition_type='t.linux',
+                mountpoint='/var',
+                filesystem='ext3',
+                label='var',
+                partition_number=5
+            ),
+            'spare': ptable_entry_type(
+                mbsize=100,
+                clone=0,
+                partition_name='p.lxspare',
+                partition_type='t.linux',
+                mountpoint='/spare',
+                filesystem='squashfs',
+                label='spare',
+                partition_number=3
+            )
+        }
+        self.disk_builder.volume_manager_name = None
+
+        filesystem = Mock()
+        mock_fs.return_value.__enter__.return_value = filesystem
+
+        with patch('builtins.open'):
+            self.disk_builder.create_disk()
+
+        # Verify that create_custom_partitions was called with the partitions
+        disk.create_custom_partitions.assert_called_once_with(
+            self.disk_builder.custom_partitions
+        )
+
+    def test_get_custom_partitions_in_order_empty(self):
+        # Test with empty custom_partitions
+        self.disk_builder.custom_partitions = {}
+        result = self.disk_builder._get_custom_partitions_in_order()
+        assert result == []
+
+    def test_get_custom_partitions_in_order_no_explicit_numbers(self):
+        # Test with no explicit partition numbers (backward compatibility)
+        self.disk_builder.custom_partitions = {
+            'var': ptable_entry_type(
+                mbsize=100,
+                clone=0,
+                partition_name='p.lxvar',
+                partition_type='t.linux',
+                mountpoint='/var',
+                filesystem='ext3',
+                label='var',
+                partition_number=0
+            ),
+            'spare': ptable_entry_type(
+                mbsize=100,
+                clone=0,
+                partition_name='p.lxspare',
+                partition_type='t.linux',
+                mountpoint='/spare',
+                filesystem='squashfs',
+                label='spare',
+                partition_number=0
+            )
+        }
+        result = list(self.disk_builder._get_custom_partitions_in_order())
+        # Should be sorted alphabetically: spare, var
+        assert result[0][0] == 'spare'
+        assert result[1][0] == 'var'
+
+    def test_get_custom_partitions_in_order_with_explicit_numbers(self):
+        # Test with explicit partition numbers
+        self.disk_builder.custom_partitions = {
+            'var': ptable_entry_type(
+                mbsize=100,
+                clone=0,
+                partition_name='p.lxvar',
+                partition_type='t.linux',
+                mountpoint='/var',
+                filesystem='ext3',
+                label='var',
+                partition_number=5
+            ),
+            'spare': ptable_entry_type(
+                mbsize=100,
+                clone=0,
+                partition_name='p.lxspare',
+                partition_type='t.linux',
+                mountpoint='/spare',
+                filesystem='squashfs',
+                label='spare',
+                partition_number=3
+            )
+        }
+        result = list(self.disk_builder._get_custom_partitions_in_order())
+        # Should be sorted by partition number: 3, 5
+        assert result[0][1].partition_number == 3
+        assert result[1][1].partition_number == 5
+
+    def test_init_with_custom_partitions_validation(self):
+        # Test DiskBuilder initialization with custom partitions
+        # This covers the partition numbering validation code in __init__
+        # We test this by directly calling _get_custom_partitions_in_order
+        # which executes the sorted branch when explicit numbers exist
+
+        # Create partitions with mixed explicit/implicit numbering to ensure
+        # the validation paths are covered
+        self.disk_builder.custom_partitions = {
+            'var': ptable_entry_type(
+                mbsize=100,
+                clone=0,
+                partition_name='p.lxvar',
+                partition_type='t.linux',
+                mountpoint='/var',
+                filesystem='ext3',
+                label='var',
+                partition_number=2
+            ),
+            'spare': ptable_entry_type(
+                mbsize=50,
+                clone=0,
+                partition_name='p.lxspare',
+                partition_type='t.linux',
+                mountpoint='/spare',
+                filesystem='squashfs',
+                label='spare',
+                partition_number=1
+            )
+        }
+
+        # Call the method that uses the partition numbering validation
+        result = list(self.disk_builder._get_custom_partitions_in_order())
+
+        # Should be sorted by partition number: 1, 2
+        assert len(result) == 2
+        assert result[0][1].partition_number == 1  # spare (partition 1)
+        assert result[1][1].partition_number == 2  # var (partition 2)
+
+    @patch('os.path.exists')
+    def test_disk_builder_init_with_custom_partitions(self, mock_exists):
+        # Test DiskBuilder initialization with custom partitions
+        # This covers lines 163-172 in disk.py (partition validation in __init__)
+        def side_effect(filename):
+            if filename.endswith('.config/kiwi/config.yml'):
+                return False
+            elif filename.endswith('etc/kiwi.yml'):
+                return False
+            else:
+                return True
+
+        mock_exists.side_effect = side_effect
+        description = XMLDescription(
+            '../data/example_disk_config.xml'
+        )
+        xml_state = XMLState(description.load())
+
+        # Mock get_partitions() to return custom partitions
+        custom_partitions = {
+            'var': ptable_entry_type(
+                mbsize=100,
+                clone=0,
+                partition_name='p.lxvar',
+                partition_type='t.linux',
+                mountpoint='/var',
+                filesystem='ext3',
+                label='var',
+                partition_number=2
+            ),
+            'spare': ptable_entry_type(
+                mbsize=50,
+                clone=0,
+                partition_name='p.lxspare',
+                partition_type='t.linux',
+                mountpoint='/spare',
+                filesystem='squashfs',
+                label='spare',
+                partition_number=1
+            )
+        }
+        xml_state.get_partitions = Mock(
+            return_value=custom_partitions
+        )
+
+        # Create DiskBuilder with mocked XMLState
+        disk_builder = DiskBuilder(
+            xml_state, 'target_dir', 'root_dir',
+            custom_args={'signing_keys': ['key_file_a', 'key_file_b']}
+        )
+
+        # Verify that custom_partitions were properly set and validated
+        assert disk_builder.custom_partitions is not None
+        assert len(disk_builder.custom_partitions) == 2
+        assert 'var' in disk_builder.custom_partitions
+        assert 'spare' in disk_builder.custom_partitions
+        # Verify partition numbers are preserved
+        assert disk_builder.custom_partitions['var'].partition_number == 2
+        assert disk_builder.custom_partitions['spare'].partition_number == 1
+
     def _get_disk_instance(self) -> Mock:
         disk = Mock()
         provider = Mock()

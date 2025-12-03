@@ -3392,6 +3392,17 @@ for all target image files at call time of:
 kiwi-ng result bundle ...</a:documentation>
       </attribute>
     </define>
+    <define name="k.type.custom_part_control.attribute">
+      <attribute name="custom_part_control">
+        <a:documentation>Enable custom partition control
+When set to "true", allows explicit partition numbering
+and ordering via partition_number and boot_flag attributes</a:documentation>
+        <choice>
+          <value>true</value>
+          <value>false</value>
+        </choice>
+      </attribute>
+    </define>
     <define name="k.type.attlist">
       <interleave>
         <optional>
@@ -3663,6 +3674,9 @@ kiwi-ng result bundle ...</a:documentation>
         </optional>
         <optional>
           <ref name="k.type.bundle_format.attribute"/>
+        </optional>
+        <optional>
+          <ref name="k.type.custom_part_control.attribute"/>
         </optional>
       </interleave>
     </define>

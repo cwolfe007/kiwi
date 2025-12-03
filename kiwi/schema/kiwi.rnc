@@ -2345,6 +2345,11 @@ div {
         ## for all target image files at call time of:
         ## kiwi-ng result bundle ...
         attribute bundle_format { text }
+    k.type.custom_part_control.attribute =
+        ## Enable custom partition control
+        ## When set to "true", allows explicit partition numbering
+        ## and ordering via partition_number and boot_flag attributes
+        attribute custom_part_control { "true" | "false" }
     k.type.attlist =
         ## Specifies the image type
         k.type.boot.attribute? &
@@ -2436,7 +2441,8 @@ div {
         k.type.disk_start_sector.attribute? &
         k.type.root_clone.attribute? &
         k.type.boot_clone.attribute? &
-        k.type.bundle_format.attribute?
+        k.type.bundle_format.attribute? &
+        k.type.custom_part_control.attribute?
     k.type =
         ## The Image Type of the Logical Extend
         element type {

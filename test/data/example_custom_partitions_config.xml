@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<image schemaversion="8.4" name="TestCustomPartitions">
+    <description type="system">
+        <author>Kiwi Team</author>
+        <contact>https://github.com/OSInside/kiwi</contact>
+        <specification>
+            Test custom partition control with partition_number and boot_flag attributes
+        </specification>
+    </description>
+    <preferences>
+        <version>1.0.0</version>
+        <packagemanager>apt</packagemanager>
+        <type image="oem" filesystem="ext4" custom_part_control="true">
+            <partitions>
+                <partition name="custom_efi" size="100" partition_number="127"
+                           partition_type="t.efi" boot_flag="false">
+                    <label>EFI</label>
+                </partition>
+                <partition name="custom_boot" size="1024" partition_number="128"
+                           partition_type="t.linux" boot_flag="true">
+                    <label>Boot</label>
+                </partition>
+                <partition name="custom_var" size="2000" partition_number="2"
+                           partition_type="t.linux" boot_flag="false">
+                    <label>Var</label>
+                </partition>
+                <partition name="custom_root" size="all_free" partition_number="1"
+                           partition_type="t.linux" boot_flag="false">
+                    <label>Root</label>
+                </partition>
+            </partitions>
+        </type>
+    </preferences>
+    <repository type="apt-deb">
+        <source path="obs://Debian:Testing/standard"/>
+    </repository>
+    <packages type="image">
+        <package name="grub2"/>
+        <package name="kernel-image-generic"/>
+    </packages>
+    <packages type="bootstrap">
+        <package name="base-files"/>
+        <package name="base-passwd"/>
+    </packages>
+</image>

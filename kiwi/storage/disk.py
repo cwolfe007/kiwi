@@ -19,7 +19,7 @@ import os
 import logging
 from collections import OrderedDict
 from typing import (
-    Dict, NamedTuple, Tuple
+    Dict, NamedTuple, Tuple, Optional
 )
 
 # project
@@ -35,17 +35,16 @@ from kiwi.exceptions import (
     KiwiError
 )
 
-ptable_entry_type = NamedTuple(
-    'ptable_entry_type', [
-        ('mbsize', int),
-        ('clone', int),
-        ('partition_name', str),
-        ('partition_type', str),
-        ('mountpoint', str),
-        ('filesystem', str),
-        ('label', str)
-    ]
-)
+class ptable_entry_type(NamedTuple):
+    mbsize: int
+    clone: int
+    partition_name: str
+    partition_type: str
+    mountpoint: str
+    filesystem: str
+    label: str
+    partition_number: Optional[int] = None
+    boot_flag: Optional[bool] = False
 
 log = logging.getLogger('kiwi')
 
@@ -139,7 +138,8 @@ class Disk(DeviceProvider):
         return self.storage_provider.is_loop()
 
     def create_custom_partitions(
-        self, table_entries: Dict[str, ptable_entry_type]
+        self, table_entries: Dict[str, ptable_entry_type],
+        custom_part_control: bool = False
     ) -> None:
         """
         Create partitions from custom data set
@@ -150,29 +150,57 @@ class Disk(DeviceProvider):
                map_name: ptable_entry_type
            }
 
-        :param dict table: partition table spec
+        :param dict table_entries: partition table spec
+        :param bool custom_part_control: If True, allow reserved partition names
+                                        and use explicit partition_number values
+                                        from partition_number attribute
         """
+        # Preserve XML element order (= physical disk order) when iterating
+        # Dict order is preserved in Python 3.7+
         for map_name in table_entries:
-            if map_name in self.protected_map_ids:
+            # Enforce protected names only when custom_part_control is disabled
+            if not custom_part_control and map_name in self.protected_map_ids:
                 raise KiwiCustomPartitionConflictError(
                     f'Cannot use reserved table entry name: {map_name!r}'
                 )
+
             entry = table_entries[map_name]
+
             if entry.clone:
                 self._create_clones(
                     map_name, entry.clone, entry.partition_type,
                     format(entry.mbsize)
                 )
+
             id_name = f'kiwi_{map_name.title()}Part'
-            self.partitioner.create(
-                entry.partition_name, entry.mbsize, entry.partition_type
-            )
+
+            # Determine if we should use explicit partition numbering
+            # CRITICAL - Backwards Compatibility: Only pass explicit_partition_id when it has a value
+            # This ensures existing tests work without modification
+            if custom_part_control and entry.partition_number:
+                self.partitioner.create(
+                    entry.partition_name, entry.mbsize, entry.partition_type,
+                    explicit_partition_id=entry.partition_number
+                )
+            else:
+                self.partitioner.create(
+                    entry.partition_name, entry.mbsize, entry.partition_type
+                )
+
             self._add_to_map(map_name)
             self._add_to_public_id_map(id_name)
+
+            # Apply firmware partition UUIDs
             part_uuid = self.gUID.get(entry.partition_name)
             if part_uuid:
                 self.partitioner.set_uuid(
                     self.partition_id_map[map_name], part_uuid
+                )
+
+            # Set boot flag if specified and custom_part_control is enabled
+            if custom_part_control and entry.boot_flag is True:
+                self.partitioner.set_flag(
+                    self.partition_id_map[map_name], 'f.active'
                 )
 
     def create_root_partition(self, mbsize: str, clone: int = 0):

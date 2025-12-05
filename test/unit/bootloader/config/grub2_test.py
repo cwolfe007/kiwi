@@ -1295,6 +1295,94 @@ class TestBootLoaderConfigGrub2:
                 )
                 assert 'readonly system' in self._caplog.text
 
+    @patch.object(BootLoaderConfigGrub2, '_mount_system')
+    @patch.object(BootLoaderConfigGrub2, '_copy_grub_config_to_efi_path')
+    @patch('kiwi.bootloader.config.grub2.Command.run')
+    @patch('kiwi.bootloader.config.grub2.Path.which')
+    @patch('kiwi.bootloader.config.grub2.Path.create')
+    @patch('kiwi.defaults.Defaults.get_vendor_grubenv')
+    @patch('glob.iglob')
+    def test_setup_disk_image_config_grub2_mkconfig_exception(
+        self, mock_iglob, mock_get_vendor_grubenv,
+        mock_Path_create, mock_Path_which,
+        mock_Command_run, mock_copy_grub_config_to_efi_path,
+        mock_mount_system
+    ):
+        """
+        Test that grub2-mkconfig exceptions are caught and logged gracefully.
+
+        This test covers lines 300-309 in grub2.py where grub2-mkconfig
+        failures in chroot are handled with warning/info logging.
+        """
+        self.state.get_dracut_config = Mock(
+            return_value=DracutT(uefi=False, modules=[], drivers=[])
+        )
+        mock_iglob.return_value = ['some_entry.conf']
+        mock_get_vendor_grubenv.return_value = 'grubenv'
+        mock_Path_which.return_value = '/path/to/grub2-mkconfig'
+        self.firmware.efi_mode = Mock(
+            return_value='uefi'
+        )
+        self.bootloader.root_filesystem_is_overlay = True
+        self.bootloader.root_reference = 'root=overlay:UUID=ID'
+        self.bootloader.root_mount = Mock()
+        self.bootloader.root_mount.mountpoint = 'root_mount_point'
+        self.bootloader.efi_mount = Mock()
+        self.bootloader.efi_mount.mountpoint = 'efi_mount_point'
+        self.bootloader.early_boot_script_efi = 'earlyboot.cfg'
+
+        # Mock Command.run to raise exception on first call (grub2-mkconfig)
+        # but succeed on subsequent calls (e.g., boot symlink creation)
+        mock_Command_run.side_effect = [
+            Exception('grub2-probe failed to detect filesystem'),  # First call fails
+            None  # Subsequent calls succeed
+        ]
+
+        with patch('builtins.open', create=True) as mock_open:
+            mock_open_grub = MagicMock(spec=io.IOBase)
+            mock_open_menu = MagicMock(spec=io.IOBase)
+            mock_open_grubenv = MagicMock(spec=io.IOBase)
+
+            def open_file(filename, mode=None):
+                if filename == 'root_mount_point/boot/grub2/grub.cfg':
+                    return mock_open_grub.return_value
+                elif filename == 'some_entry.conf':
+                    return mock_open_menu.return_value
+                elif filename == 'grubenv':
+                    return mock_open_grubenv.return_value
+
+            mock_open.side_effect = open_file
+
+            file_handle_grub = \
+                mock_open_grub.return_value.__enter__.return_value
+            file_handle_menu = \
+                mock_open_menu.return_value.__enter__.return_value
+            file_handle_grubenv = \
+                mock_open_grubenv.return_value.__enter__.return_value
+
+            file_handle_grub.read.return_value = \
+                'root=rootdev nomodeset console=ttyS0 console=tty0\n' \
+                'root=PARTUUID=xx'
+            file_handle_grubenv.read.return_value = 'root=rootdev'
+            file_handle_menu.read.return_value = \
+                'options foo\nlinux unexpected/boot/vmlinuz\ninitrd /boot/initrd'
+
+            # Capture log output to verify warning/info messages
+            # Use INFO level to capture both WARNING and INFO messages from exception handler
+            # Example output from lines 300-309:
+            #   WARNING: grub2-mkconfig failed (this is expected in chroot): grub2-probe failed...
+            #   INFO: Bootloader configuration will be completed at install time
+            with self._caplog.at_level(logging.INFO):
+                self.bootloader.setup_disk_image_config(
+                    boot_options={
+                        'root_device': 'rootdev', 'boot_device': 'bootdev'
+                    }
+                )
+                # Verify exception was caught and logged (lines 300-309)
+                assert 'grub2-mkconfig failed (this is expected in chroot)' in self._caplog.text
+                assert 'Bootloader configuration will be completed at install time' in self._caplog.text
+                assert 'grub2-probe failed to detect filesystem' in self._caplog.text
+
     @patch.object(BootLoaderConfigGrub2, '_copy_grub_config_to_efi_path')
     def test_setup_install_image_config_standard(
         self, mock_copy_grub_config_to_efi_path

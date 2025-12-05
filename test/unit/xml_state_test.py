@@ -1425,6 +1425,12 @@ class TestXMLState:
         assert partitions['custom_var'].boot_flag is False
         assert partitions['custom_root'].boot_flag is False
 
+        # Verify partition_type attributes are parsed correctly
+        assert partitions['custom_efi'].partition_type == 't.efi'
+        assert partitions['custom_boot'].partition_type == 't.linux'
+        assert partitions['custom_var'].partition_type == 't.linux'
+        assert partitions['custom_root'].partition_type == 't.linux'
+
     def test_get_partitions_with_partition_number_as_string(self):
         """Test that partition_number is converted to int"""
         description = XMLDescription(

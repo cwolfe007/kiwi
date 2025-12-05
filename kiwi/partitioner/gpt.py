@@ -77,8 +77,9 @@ class PartitionerGpt(PartitionerBase):
             partition_end = '+' + format(mbsize) + 'M'
 
         # Set start_sector=0 to let sgdisk find the next available sector
-        # This works correctly when called multiple times as sgdisk updates the disk each time
-        if is_first_partition or not self.start_sector:
+        # For the first partition, honor any custom start_sector passed to constructor
+        # For subsequent partitions, always use 0 (sgdisk finds next available space)
+        if not is_first_partition or not self.start_sector:
             self.start_sector = 0
 
         Command.run(

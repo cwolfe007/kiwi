@@ -1,4 +1,4 @@
-from unittest.mock import Mock, patch, call
+from unittest.mock import Mock, patch
 from kiwi.partitioner.gpt import PartitionerGpt
 
 
@@ -64,8 +64,8 @@ class TestGptStartSector:
             f"Third partition should use start_sector=0, got {start_sectors[2]}"
 
         print(f"✓ All partitions used start_sector=0: {start_sectors}")
-        print(f"✓ Partition IDs created: 128, 127, 1 (XML element order)")
-        print(f"✓ sgdisk automatically places partitions sequentially on disk")
+        print("✓ Partition IDs created: 128, 127, 1 (XML element order)")
+        print("✓ sgdisk automatically places partitions sequentially on disk")
 
     @patch('kiwi.partitioner.gpt.Command.run')
     def test_auto_increment_partition_ids_all_use_start_sector_zero(self, mock_command):
@@ -99,5 +99,5 @@ class TestGptStartSector:
         assert all(s == '0' for s in start_sectors), \
             f"All auto-increment partitions should use start_sector=0, got {start_sectors}"
 
-        print(f"✓ Backwards compatibility: all partitions used start_sector=0")
-        print(f"✓ Partition IDs: 1, 2, 3 (auto-incremented)")
+        print("✓ Backwards compatibility: all partitions used start_sector=0")
+        print("✓ Partition IDs: 1, 2, 3 (auto-incremented)")

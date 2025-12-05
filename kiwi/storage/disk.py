@@ -35,6 +35,7 @@ from kiwi.exceptions import (
     KiwiError
 )
 
+
 class ptable_entry_type(NamedTuple):
     mbsize: int
     clone: int
@@ -45,6 +46,7 @@ class ptable_entry_type(NamedTuple):
     label: str
     partition_number: Optional[int] = None
     boot_flag: Optional[bool] = False
+
 
 log = logging.getLogger('kiwi')
 

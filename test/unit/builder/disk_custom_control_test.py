@@ -1,5 +1,5 @@
 from unittest.mock import (
-    patch, Mock, MagicMock
+    patch, Mock
 )
 from pytest import (
     raises, fixture
@@ -11,7 +11,6 @@ from kiwi.defaults import Defaults
 from kiwi.xml_description import XMLDescription
 from kiwi.xml_state import XMLState
 from kiwi.builder.disk import DiskBuilder
-from kiwi.storage.disk import ptable_entry_type
 from kiwi.exceptions import (
     KiwiDiskConfigError
 )

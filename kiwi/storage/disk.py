@@ -205,6 +205,12 @@ class Disk(DeviceProvider):
                     self.partition_id_map[map_name], 'f.active'
                 )
 
+            # Create canonical aliases for custom_part_control partitions
+            # This allows bootloader code to find partitions by their function
+            # (root, boot, efi) even when using custom partition names
+            if custom_part_control:
+                self._create_canonical_partition_alias(map_name, entry)
+
     def create_root_partition(self, mbsize: str, clone: int = 0):
         """
         Create root partition
@@ -587,6 +593,51 @@ class Disk(DeviceProvider):
         else:
             size_list = value.split(':')
             return (size_list[1], size_list[2])
+
+    def _create_canonical_partition_alias(
+        self, map_name: str, entry: ptable_entry_type
+    ) -> None:
+        """
+        Create canonical aliases for custom partitions
+
+        This allows bootloader code to find partitions by their canonical
+        function (root, boot, efi) even when using custom partition names.
+
+        Aliases are created based on:
+        - partition_type="t.efi" → 'efi' alias
+        - boot_flag=True → 'boot' alias
+        - label containing "root" (case insensitive) → 'root' alias
+
+        :param str map_name: The custom partition name from XML
+        :param ptable_entry_type entry: The partition entry with attributes
+        """
+        # Skip if the partition already uses the canonical name
+        if map_name in ('root', 'boot', 'efi'):
+            return
+
+        canonical_name = None
+
+        # Create alias based on partition_type (unambiguous for EFI)
+        if entry.partition_type == 't.efi' and 'efi' not in self.partition_map:
+            canonical_name = 'efi'
+        # Create alias for boot partition based on boot_flag
+        elif entry.boot_flag is True and 'boot' not in self.partition_map:
+            canonical_name = 'boot'
+        # Create alias for root partition based on label containing "root"
+        elif entry.label and 'root' in entry.label.lower() and \
+                'root' not in self.partition_map:
+            canonical_name = 'root'
+
+        if canonical_name:
+            # Create alias by copying the device node reference
+            device_node = self.partition_map.get(map_name)
+            if device_node:
+                self.partition_map[canonical_name] = device_node
+                self.partition_id_map[canonical_name] = \
+                    self.partition_id_map[map_name]
+                log.debug(
+                    f'Created partition alias: {canonical_name} -> {map_name}'
+                )
 
     def _add_to_public_id_map(self, name, value=None):
         if not value:

@@ -744,6 +744,12 @@ class DiskBuilder:
             )
             stack.push(filesystem)
             self._map_root_filesystem(device_map, filesystem)
+        elif self._has_custom_partition_control():
+            # For custom partition control, get root filesystem from custom parts
+            # This is required for bootloader installation which checks 'if system:'
+            if 'root' in self.storage_map.get('system_custom_parts', {}):
+                self.storage_map['system'] = \
+                    self.storage_map['system_custom_parts']['root']
 
         return device_map
 
@@ -1998,8 +2004,12 @@ class DiskBuilder:
             readonly_device = device_map['readonly']
             boot_device = readonly_device
 
+        log.debug(f'_install_bootloader: device_map keys={list(device_map.keys())}')
         if 'boot' in device_map:
             boot_device = device_map['boot']
+            log.debug(f'_install_bootloader: Using separate boot device: {boot_device.get_device()}')
+        else:
+            log.debug(f'_install_bootloader: boot not in device_map, using root: {boot_device.get_device()}')
 
         custom_install_arguments = {
             'boot_image': boot_image,

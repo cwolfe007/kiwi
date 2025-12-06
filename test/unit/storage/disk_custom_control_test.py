@@ -412,3 +412,166 @@ class TestDiskCustomPartitionControl:
         calls = self.partitioner.create.call_args_list
         for call_obj in calls:
             assert call_obj[1].get('explicit_partition_id') is None
+
+    def test_canonical_alias_efi_partition_by_type(self):
+        """Test EFI partition creates 'efi' alias based on t.efi type"""
+        self.disk.create_custom_partitions(
+            {
+                'custom_efi': ptable_entry_type(
+                    mbsize=100,
+                    clone=0,
+                    partition_name='p.UEFI',
+                    partition_type='t.efi',
+                    mountpoint='/boot/efi',
+                    filesystem='vfat',
+                    label='EFI',
+                    partition_number=127,
+                    boot_flag=False
+                )
+            },
+            custom_part_control=True
+        )
+        # Verify 'efi' alias is created in partition_map
+        assert 'efi' in self.disk.partition_map
+        assert 'custom_efi' in self.disk.partition_map
+        # Both should point to the same device
+        assert self.disk.partition_map['efi'] == self.disk.partition_map['custom_efi']
+
+    def test_canonical_alias_boot_partition_by_flag(self):
+        """Test boot partition creates 'boot' alias based on boot_flag=True"""
+        self.disk.create_custom_partitions(
+            {
+                'custom_boot': ptable_entry_type(
+                    mbsize=512,
+                    clone=0,
+                    partition_name='p.lxboot',
+                    partition_type='t.linux',
+                    mountpoint='/boot',
+                    filesystem='ext4',
+                    label='Boot',
+                    partition_number=128,
+                    boot_flag=True
+                )
+            },
+            custom_part_control=True
+        )
+        # Verify 'boot' alias is created in partition_map
+        assert 'boot' in self.disk.partition_map
+        assert 'custom_boot' in self.disk.partition_map
+        assert self.disk.partition_map['boot'] == self.disk.partition_map['custom_boot']
+
+    def test_canonical_alias_root_partition_by_label(self):
+        """Test root partition creates 'root' alias based on label containing 'root'"""
+        self.disk.create_custom_partitions(
+            {
+                'custom_root': ptable_entry_type(
+                    mbsize=10000,
+                    clone=0,
+                    partition_name='p.lxroot',
+                    partition_type='t.linux',
+                    mountpoint='/',
+                    filesystem='ext4',
+                    label='Root',
+                    partition_number=1,
+                    boot_flag=False
+                )
+            },
+            custom_part_control=True
+        )
+        # Verify 'root' alias is created in partition_map
+        assert 'root' in self.disk.partition_map
+        assert 'custom_root' in self.disk.partition_map
+        assert self.disk.partition_map['root'] == self.disk.partition_map['custom_root']
+
+    def test_canonical_alias_not_created_for_existing_canonical_name(self):
+        """Test no alias created when partition already uses canonical name"""
+        self.disk.create_custom_partitions(
+            {
+                'root': ptable_entry_type(
+                    mbsize=10000,
+                    clone=0,
+                    partition_name='p.lxroot',
+                    partition_type='t.linux',
+                    mountpoint='/',
+                    filesystem='ext4',
+                    label='Root',
+                    partition_number=1,
+                    boot_flag=False
+                )
+            },
+            custom_part_control=True
+        )
+        # 'root' should be in partition_map only once (the original name)
+        assert 'root' in self.disk.partition_map
+
+    def test_canonical_alias_not_created_without_custom_part_control(self):
+        """Test aliases are NOT created when custom_part_control=False"""
+        self.disk.create_custom_partitions(
+            {
+                'custom_efi': ptable_entry_type(
+                    mbsize=100,
+                    clone=0,
+                    partition_name='p.UEFI',
+                    partition_type='t.efi',
+                    mountpoint='/boot/efi',
+                    filesystem='vfat',
+                    label='EFI',
+                    partition_number=None,
+                    boot_flag=False
+                )
+            },
+            custom_part_control=False
+        )
+        # 'efi' alias should NOT be created when custom_part_control=False
+        assert 'efi' not in self.disk.partition_map
+        assert 'custom_efi' in self.disk.partition_map
+
+    def test_canonical_alias_multiple_partitions(self):
+        """Test canonical aliases are created for multiple partitions"""
+        self.partitioner.get_id.side_effect = [1, 2, 3]
+        self.disk.create_custom_partitions(
+            {
+                'my_efi': ptable_entry_type(
+                    mbsize=100,
+                    clone=0,
+                    partition_name='p.UEFI',
+                    partition_type='t.efi',
+                    mountpoint='/boot/efi',
+                    filesystem='vfat',
+                    label='EFI',
+                    partition_number=127,
+                    boot_flag=False
+                ),
+                'my_boot': ptable_entry_type(
+                    mbsize=512,
+                    clone=0,
+                    partition_name='p.lxboot',
+                    partition_type='t.linux',
+                    mountpoint='/boot',
+                    filesystem='ext4',
+                    label='Boot',
+                    partition_number=128,
+                    boot_flag=True
+                ),
+                'my_root': ptable_entry_type(
+                    mbsize=10000,
+                    clone=0,
+                    partition_name='p.lxroot',
+                    partition_type='t.linux',
+                    mountpoint='/',
+                    filesystem='ext4',
+                    label='MyRoot',
+                    partition_number=1,
+                    boot_flag=False
+                )
+            },
+            custom_part_control=True
+        )
+        # All canonical aliases should be created
+        assert 'efi' in self.disk.partition_map
+        assert 'boot' in self.disk.partition_map
+        assert 'root' in self.disk.partition_map
+        # Original names should also exist
+        assert 'my_efi' in self.disk.partition_map
+        assert 'my_boot' in self.disk.partition_map
+        assert 'my_root' in self.disk.partition_map

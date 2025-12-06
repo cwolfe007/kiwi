@@ -528,7 +528,8 @@ class TestDiskCustomPartitionControl:
 
     def test_canonical_alias_multiple_partitions(self):
         """Test canonical aliases are created for multiple partitions"""
-        self.partitioner.get_id.side_effect = [1, 2, 3]
+        # get_id is called multiple times per partition (for _add_to_map and _add_to_public_id_map)
+        self.partitioner.get_id.side_effect = [1, 1, 2, 2, 3, 3]
         self.disk.create_custom_partitions(
             {
                 'my_efi': ptable_entry_type(

@@ -289,26 +289,13 @@ class BootLoaderConfigGrub2(BootLoaderConfigBase):
         # Disable os-prober, it takes information from the host it
         # runs on which is not necessarily matching with the image
         os.environ.update({'GRUB_DISABLE_OS_PROBER': 'true'})
-        try:
-            Command.run(
-                [
-                    'chroot', self.root_mount.mountpoint,
-                    os.path.basename(self._get_grub2_mkconfig_tool()), '-o',
-                    config_file.replace(self.root_mount.mountpoint, '')
-                ], os.environ
-            )
-        except Exception as e:
-            # grub2-mkconfig often fails in chroot with loop devices
-            # due to grub2-probe not being able to detect filesystems.
-            # This is a known issue especially with Fedora builds.
-            # Log the error but continue - bootloader will be configured
-            # at install time if installboot="install" is set
-            log.warning(
-                f'grub2-mkconfig failed (this is expected in chroot): {e}'
-            )
-            log.info(
-                'Bootloader configuration will be completed at install time'
-            )
+        Command.run(
+            [
+                'chroot', self.root_mount.mountpoint,
+                os.path.basename(self._get_grub2_mkconfig_tool()), '-o',
+                config_file.replace(self.root_mount.mountpoint, '')
+            ], os.environ
+        )
         if boot_options.get('root_device') != boot_options.get('boot_device'):
             # Create a boot -> . link on the boot partition.
             # The link is useful if the grub mkconfig command

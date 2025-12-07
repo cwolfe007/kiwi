@@ -48,9 +48,17 @@ kiwi/schema/kiwi.rng: kiwi/schema/kiwi.rnc
 	# whenever the schema is changed this target will convert
 	# the short form of the RelaxNG schema to the format used
 	# in code and auto generates the python data structures
-	@type -p trang &>/dev/null || \
-		(echo "ERROR: trang not found in path: $(PATH)"; exit 1)
-	trang -I rnc -O rng kiwi/schema/kiwi.rnc kiwi/schema/kiwi.rng
+	@TRANG_CMD=trang; \
+	if ! command -v trang >/dev/null 2>&1; then \
+		if [ ! -f /tmp/trang-20220510/trang.jar ]; then \
+			mkdir -p /tmp && cd /tmp && \
+			wget -q https://github.com/relaxng/jing-trang/releases/download/V20220510/trang-20220510.zip && \
+			unzip -qo trang-20220510.zip && \
+			rm trang-20220510.zip; \
+		fi; \
+		TRANG_CMD="java -jar /tmp/trang-20220510/trang.jar"; \
+	fi; \
+	$$TRANG_CMD -I rnc -O rng kiwi/schema/kiwi.rnc kiwi/schema/kiwi.rng
 	# XML parser code is auto generated from schema using generateDS
 	# http://pythonhosted.org/generateDS
 	# ---
@@ -62,7 +70,17 @@ kiwi/schema/kiwi.rng: kiwi/schema/kiwi.rnc
 		s'@arch-name = xsd:token.*@arch-name = xsd:token {pattern = ".*"}@' >\
 		kiwi/schema/kiwi_modified_for_generateDS.rnc
 	# convert schema rnc format into xsd format and call generateDS
-	trang -I rnc -O xsd kiwi/schema/kiwi_modified_for_generateDS.rnc \
+	@TRANG_CMD=trang; \
+	if ! command -v trang >/dev/null 2>&1; then \
+		if [ ! -f /tmp/trang-20220510/trang.jar ]; then \
+			mkdir -p /tmp && cd /tmp && \
+			wget -q https://github.com/relaxng/jing-trang/releases/download/V20220510/trang-20220510.zip && \
+			unzip -qo trang-20220510.zip && \
+			rm trang-20220510.zip; \
+		fi; \
+		TRANG_CMD="java -jar /tmp/trang-20220510/trang.jar"; \
+	fi; \
+	$$TRANG_CMD -I rnc -O xsd kiwi/schema/kiwi_modified_for_generateDS.rnc \
 		kiwi/schema/kiwi_for_generateDS.xsd
 	generateDS.py -f --external-encoding='utf-8' --no-dates --no-warnings \
 		-o kiwi/xml_parse.py kiwi/schema/kiwi_for_generateDS.xsd
@@ -127,7 +145,7 @@ test: setup
 	# python static code checks
 	poetry run mypy kiwi
 	# unit tests
-	poetry run bash -c 'pushd test/unit && pytest -n 5 \
+	poetry run bash -c 'pushd test/unit && pytest -n 10 \
 		--doctest-modules --no-cov-on-fail --cov=kiwi \
 		--cov-report=term-missing --cov-fail-under=100 \
 		--cov-config .coveragerc'

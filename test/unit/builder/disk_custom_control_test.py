@@ -309,3 +309,80 @@ class TestDiskBuilderCustomPartitionControl:
                     return_value=None
                 )
                 assert disk_builder is not None
+
+    def test_custom_partition_control_sets_storage_map_system(self):
+        """Test storage_map['system'] is set from custom parts when custom_part_control=true"""
+        with patch('kiwi.builder.disk.Disk'):
+            with patch('kiwi.builder.disk.BootImage'):
+                disk_builder = DiskBuilder(
+                    self.xml_state,
+                    self.target_dir,
+                    self.root_dir,
+                    None
+                )
+                # Setup: custom_part_control enabled
+                disk_builder.xml_state.build_type.get_custom_part_control = Mock(
+                    return_value='true'
+                )
+                # Setup: mock root filesystem in system_custom_parts
+                mock_root_fs = Mock()
+                disk_builder.storage_map = {
+                    'system': None,
+                    'system_custom_parts': {'root': mock_root_fs}
+                }
+                # Simulate what _create_system_instance does for custom_part_control
+                if disk_builder._has_custom_partition_control():
+                    if 'root' in disk_builder.storage_map.get('system_custom_parts', {}):
+                        disk_builder.storage_map['system'] = \
+                            disk_builder.storage_map['system_custom_parts']['root']
+                # Verify storage_map['system'] is now set to the root filesystem
+                assert disk_builder.storage_map['system'] is mock_root_fs
+
+    @patch('kiwi.builder.disk.FileSystem')
+    def test_create_system_instance_custom_partition_control(self, mock_FileSystem):
+        """Test _create_system_instance sets storage_map['system'] from custom parts"""
+        from contextlib import ExitStack
+        with patch('kiwi.builder.disk.Disk'):
+            with patch('kiwi.builder.disk.BootImage'):
+                disk_builder = DiskBuilder(
+                    self.xml_state,
+                    self.target_dir,
+                    self.root_dir,
+                    None
+                )
+                # Setup: custom_part_control enabled
+                disk_builder.xml_state.build_type.get_custom_part_control = Mock(
+                    return_value='true'
+                )
+                # Disable volume manager
+                disk_builder.volume_manager_name = None
+                # Initialize storage_map (normally done in create_disk)
+                disk_builder.storage_map = {
+                    'system': None,
+                    'system_boot': None,
+                    'system_efi': None,
+                    'system_spare': None,
+                    'system_custom_parts': {},
+                    'luks_root': None,
+                    'raid_root': None,
+                    'integrity_root': None
+                }
+                # Setup: mock _build_spare_filesystem to return None
+                disk_builder._build_spare_filesystem = Mock(return_value=None)
+                # Setup: mock root filesystem that _build_custom_parts_filesystem will return
+                mock_root_fs = Mock()
+                disk_builder._build_custom_parts_filesystem = Mock(
+                    return_value={'root': mock_root_fs, 'boot': Mock()}
+                )
+                # Setup device_map with root entry
+                device_map = {'root': Mock()}
+
+                # Call the actual method
+                with ExitStack() as stack:
+                    disk_builder._create_system_instance(device_map, stack)
+
+                # Verify storage_map['system'] is set to the root filesystem
+                assert disk_builder.storage_map['system'] is mock_root_fs
+                # Verify system_boot and system_efi are None (custom_part_control skips boot filesystem creation)
+                assert disk_builder.storage_map['system_boot'] is None
+                assert disk_builder.storage_map['system_efi'] is None

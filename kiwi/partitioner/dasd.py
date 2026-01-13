@@ -47,7 +47,8 @@ class PartitionerDasd(PartitionerBase):
         }
 
     def create(
-        self, name: str, mbsize: int, type_name: str, flags: List[str] = None
+        self, name: str, mbsize: int, type_name: str, flags: List[str] = None,
+        partition_number: int = None
     ) -> None:
         """
         Create DASD partition
@@ -56,6 +57,7 @@ class PartitionerDasd(PartitionerBase):
         :param int mbsize: partition size
         :param string type_name: unused
         :param list flags: unused
+        :param int partition_number: explicit partition number (unused for DASD)
         """
         self.partition_id += 1
         fdasd_input = Temporary().new_file()

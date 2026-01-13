@@ -874,3 +874,11 @@ class KiwiEnclaveFormatError(KiwiError):
     Exception raised if no enclave_format attribute specified
     for the selected build type
     """
+
+
+class KiwiPartitionNumberingError(KiwiError):
+    """
+    Exception raised if partition numbering configuration is invalid.
+    This includes duplicate partition numbers, conflicting numbers with
+    system partitions, or other partition number conflicts.
+    """

@@ -4077,6 +4077,16 @@ Allowed values are: t.linux</a:documentation>
         <a:documentation>filesystem label</a:documentation>
       </attribute>
     </define>
+    <define name="k.partition.number.attribute">
+      <attribute name="number">
+        <a:documentation>Partition number in the partition table
+If specified, the partition will be created with this exact number.
+If not specified, partitions are numbered sequentially in XML order.
+Note: Some partition numbers may be reserved by the system
+(e.g., EFI, boot, swap) depending on the disk layout configuration.</a:documentation>
+        <ref name="number-type"/>
+      </attribute>
+    </define>
     <define name="k.partition.attlist">
       <interleave>
         <ref name="k.partition.name.attribute"/>
@@ -4098,6 +4108,9 @@ Allowed values are: t.linux</a:documentation>
         </optional>
         <optional>
           <ref name="k.partition.clone.attribute"/>
+        </optional>
+        <optional>
+          <ref name="k.partition.number.attribute"/>
         </optional>
       </interleave>
     </define>

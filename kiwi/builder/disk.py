@@ -36,6 +36,7 @@ from kiwi.utils.veritysetup import VeritySetup
 from kiwi.utils.temporary import Temporary
 from kiwi.system.mount import ImageSystem
 from kiwi.storage.disk import ptable_entry_type
+from kiwi.storage.partition_numbering import PartitionNumbering
 from kiwi.defaults import Defaults
 from kiwi.filesystem.base import FileSystemBase
 from kiwi.bootloader.config import create_boot_loader_config
@@ -154,15 +155,27 @@ class DiskBuilder:
         self.volume_manager_name = xml_state.get_volume_management()
         self.volumes = xml_state.get_volumes()
         self.custom_partitions = xml_state.get_partitions()
+        self.mdraid = xml_state.build_type.get_mdraid()
+        self.hybrid_mbr = xml_state.build_type.get_gpt_hybrid_mbr()
+        self.force_mbr = xml_state.build_type.get_force_mbr()
+        # Validate and apply smart partition numbering
+        if self.custom_partitions:
+            label_type = 'gpt' if self.force_mbr is False else 'msdos'
+            PartitionNumbering.warn_on_edge_cases(
+                self.custom_partitions, label_type
+            )
+            # Get ordered and validated partitions
+            ordered_partitions = PartitionNumbering.validate_and_assign_numbers(
+                self.custom_partitions, label_type
+            )
+            # Reconstruct dict with validated entries
+            self.custom_partitions = dict(ordered_partitions)
         self.volume_group_name = xml_state.get_volume_group_name()
         self.dracut_setup = xml_state.get_dracut_config('setup')
         self.dracut_add_modules = xml_state.get_dracut_config('add').modules
         self.dracut_omit_modules = xml_state.get_dracut_config('omit').modules
         self.dracut_add_drivers = xml_state.get_dracut_config('add').drivers
         self.dracut_omit_drivers = xml_state.get_dracut_config('omit').drivers
-        self.mdraid = xml_state.build_type.get_mdraid()
-        self.hybrid_mbr = xml_state.build_type.get_gpt_hybrid_mbr()
-        self.force_mbr = xml_state.build_type.get_force_mbr()
         self.luks = xml_state.get_luks_credentials()
         self.use_disk_password = \
             xml_state.get_build_type_bootloader_use_disk_password()
@@ -1013,6 +1026,39 @@ class DiskBuilder:
             self.install_iso or self.install_stick or self.install_pxe
         )
 
+    def _get_custom_partitions_in_order(self):
+        """
+        Return custom partitions in the correct order.
+
+        If any partition has explicit numbering (partition_number > 0),
+        sort by partition number. Otherwise, sort alphabetically by name
+        for backward compatibility with existing behavior.
+
+        :return: items() iterator of (name, entry) tuples in correct order
+        :rtype: iterator
+        """
+        if not self.custom_partitions:
+            return []
+
+        # Check if any partition has explicit numbering
+        has_explicit_numbers = any(
+            entry.partition_number > 0
+            for entry in self.custom_partitions.values()
+        )
+
+        if has_explicit_numbers:
+            # Sort by partition number, with explicit numbers taking priority
+            return sorted(
+                self.custom_partitions.items(),
+                key=lambda x: x[1].partition_number if x[1].partition_number > 0 else float('inf')
+            )
+        else:
+            # Backward compatibility: sort alphabetically by name (pre-numbering behavior)
+            return sorted(
+                self.custom_partitions.items(),
+                key=lambda x: x[0]
+            )
+
     def _get_exclude_list_for_root_data_sync(self, device_map: Dict) -> list:
         exclude_list = Defaults.\
             get_exclude_list_for_root_data_sync() + Defaults.\
@@ -1035,11 +1081,10 @@ class DiskBuilder:
             exclude_list.append('boot/efi/*')
             exclude_list.append('boot/efi/.*')
         if self.custom_partitions:
-            for map_name in sorted(self.custom_partitions.keys()):
-                if map_name in device_map and \
-                   self.custom_partitions[map_name].mountpoint:
+            for map_name, entry in self._get_custom_partitions_in_order():
+                if map_name in device_map and entry.mountpoint:
                     mountpoint = os.path.normpath(
-                        self.custom_partitions[map_name].mountpoint
+                        entry.mountpoint
                     ).lstrip(os.sep)
                     exclude_list.append(f'{mountpoint}/*')
                     exclude_list.append(f'{mountpoint}/.*')
@@ -1216,9 +1261,14 @@ class DiskBuilder:
                 disksize_used_mbytes += self.swap_mbytes
 
         if self.custom_partitions:
+            # Create log message showing partitions with their numbers
+            partition_info = [
+                f"{name}(#{entry.partition_number})"
+                for name, entry in self._get_custom_partitions_in_order()
+            ]
             log.info(
                 '--> creating custom partition(s): {0}'.format(
-                    sorted(self.custom_partitions.keys())
+                    partition_info
                 )
             )
             disk.create_custom_partitions(self.custom_partitions)
@@ -1532,12 +1582,11 @@ class DiskBuilder:
                 device_map['swap'].get_device(), 'swap'
             )
         if self.custom_partitions:
-            for map_name in sorted(self.custom_partitions.keys()):
-                if device_map.get(map_name) and \
-                   self.custom_partitions[map_name].mountpoint:
+            for map_name, entry in self._get_custom_partitions_in_order():
+                if device_map.get(map_name) and entry.mountpoint:
                     self._add_fstab_entry(
                         device_map[map_name].get_device(),
-                        self.custom_partitions[map_name].mountpoint
+                        entry.mountpoint
                     )
         setup.create_fstab(
             self.fstab

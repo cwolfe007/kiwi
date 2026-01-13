@@ -73,7 +73,8 @@ class PartitionerBase:
         return self.partition_id
 
     def create(
-        self, name: str, mbsize: int, type_name: str, flags: List[str] = []
+        self, name: str, mbsize: int, type_name: str, flags: List[str] = [],
+        partition_number: int = None
     ):
         """
         Create partition
@@ -84,6 +85,7 @@ class PartitionerBase:
         :param int mbsize: unused
         :param string type_name: unused
         :param list flags: unused
+        :param int partition_number: explicit partition number (None = auto-assign)
         """
         raise NotImplementedError
 

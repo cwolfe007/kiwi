@@ -425,7 +425,8 @@ class TestXMLState:
                 partition_type='t.linux',
                 mountpoint='/var',
                 filesystem='ext3',
-                label=''
+                label='',
+                partition_number=0
             )
         }
 

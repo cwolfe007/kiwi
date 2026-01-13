@@ -229,7 +229,8 @@ class TestDiskSetup:
             partition_type='t.linux',
             mountpoint='/var',
             filesystem='ext3',
-            label='var'
+            label='var',
+            partition_number=0
         )
         assert self.setup_partitions.get_disksize_mbytes(
             root_clone=1, boot_clone=1

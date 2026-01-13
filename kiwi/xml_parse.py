@@ -5270,7 +5270,7 @@ class partition(GeneratedsSuper):
     """Specify custom partition in the partition table"""
     subclass = None
     superclass = None
-    def __init__(self, name=None, size=None, partition_name=None, partition_type=None, mountpoint=None, filesystem=None, label=None, clone=None):
+    def __init__(self, name=None, size=None, partition_name=None, partition_type=None, mountpoint=None, filesystem=None, label=None, clone=None, number=None):
         self.original_tagname_ = None
         self.name = _cast(None, name)
         self.size = _cast(None, size)
@@ -5280,6 +5280,7 @@ class partition(GeneratedsSuper):
         self.filesystem = _cast(None, filesystem)
         self.label = _cast(None, label)
         self.clone = _cast(None, clone)
+        self.number = _cast(None, number)
     def factory(*args_, **kwargs_):
         if CurrentSubclassModule_ is not None:
             subclass = getSubclassFromModule_(
@@ -5307,6 +5308,8 @@ class partition(GeneratedsSuper):
     def set_label(self, label): self.label = label
     def get_clone(self): return self.clone
     def set_clone(self, clone): self.clone = clone
+    def get_number(self): return self.number
+    def set_number(self, number): self.number = number
     def validate_partition_size_type(self, value):
         # Validate type partition-size-type, a restriction on xs:token.
         if value is not None and Validate_simpletypes_:

@@ -2677,6 +2677,13 @@ div {
     k.partition.label.attribute =
         ## filesystem label
         attribute label { text }
+    k.partition.number.attribute =
+        ## Partition number in the partition table
+        ## If specified, the partition will be created with this exact number.
+        ## If not specified, partitions are numbered sequentially in XML order.
+        ## Note: Some partition numbers may be reserved by the system
+        ## (e.g., EFI, boot, swap) depending on the disk layout configuration.
+        attribute number { number-type }
     k.partition.attlist =
         k.partition.name.attribute &
         k.partition.size.attribute &
@@ -2685,7 +2692,8 @@ div {
         k.partition.mountpoint.attribute? &
         k.partition.filesystem.attribute? &
         k.partition.label.attribute? &
-        k.partition.clone.attribute?
+        k.partition.clone.attribute? &
+        k.partition.number.attribute?
     k.partition =
         ## Specify custom partition in the partition table
         element partition {

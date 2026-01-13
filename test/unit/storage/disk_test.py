@@ -171,14 +171,15 @@ class TestDisk:
                 partition_type='t.linux',
                 mountpoint='/var',
                 filesystem='ext3',
-                label='var'
+                label='var',
+                partition_number=0
             )
         }
         self.disk.create_custom_partitions(table_entries)
         assert self.partitioner.create.call_args_list == [
             call('p.lxvarclone1', '100', 't.linux'),
             call('p.lxvarclone2', '100', 't.linux'),
-            call('p.lxvar', '100', 't.linux')
+            call('p.lxvar', '100', 't.linux', partition_number=None)
         ]
         assert self.disk.public_partition_id_map['kiwi_varPartClone1'] == 1
         assert self.disk.public_partition_id_map['kiwi_varPartClone2'] == 1
@@ -193,7 +194,8 @@ class TestDisk:
                 partition_type='t.linux',
                 mountpoint='/',
                 filesystem='ext3',
-                label='root'
+                label='root',
+                partition_number=0
             )
         }
         with raises(KiwiCustomPartitionConflictError):
